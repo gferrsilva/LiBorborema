@@ -35,4 +35,4 @@ Project Developed on R.<p>
 
 ## Copyright and License
 
-The source code for this work is licensed based on the BSD 3-Clause License, see [LICENSE](LICENSE).
+The source code for this work is licensed based on the GNU GENERAL PUBLIC LICENSE, see [LICENSE](LICENSE).
