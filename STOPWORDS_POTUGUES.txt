@@ -1,0 +1,490 @@
+English	Portugues
+a	uma
+about	sobre
+above	acima
+across	através
+after	depois de
+again	novamente
+against	contra
+all	todos
+almost	quase
+alone	sozinho
+along	ao longo
+already	já
+also	além disso
+although	apesar
+always	sempre
+among	entre
+an	a
+and	e
+another	outro
+any	qualquer
+anybody	qualquer pessoa
+anyone	qualquer um
+anything	qualquer coisa
+anywhere	qualquer lugar
+are	está
+area	área
+areas	areas
+around	por aí
+as	como
+ask	pergunte
+asked	perguntei
+asking	perguntando
+asks	pergunta
+at	a
+away	longe
+b	b
+back	de volta
+backed	apoiado
+backing	apoio
+backs	costas
+be	estar
+became	passou a ser
+because	porque
+become	tornar-se
+becomes	torna-se
+been	fui
+before	antes
+began	começasse
+behind	atrás
+being	ser
+beings	seres
+best	melhor
+better	melhor
+between	entre
+big	grande
+both	ambos
+but	mas
+by	por
+c	c
+came	veio
+can	posso
+cannot	não podes
+case	caso
+cases	casos
+certain	certo
+certainly	certamente
+clear	claro
+clearly	claramente
+come	venha
+could	poderia
+d	d
+did	fez
+differ	diferir
+different	diferente
+differently	diferentemente
+do	faz
+does	faz
+done	feito
+down	baixa
+downed	abatido
+downing	derrubada
+downs	baixos
+during	durante
+e	e
+each	cada
+early	cedo
+either	ou
+end	fim
+ended	terminou
+ending	final
+ends	termina
+enough	o suficiente
+even	até
+evenly	uniformemente
+ever	sempre
+every	cada
+everybody	todo o mundo
+everyone	todos
+everything	tudo
+everywhere	em toda parte
+f	f
+face	face
+faces	rostos
+fact	facto
+facts	factos
+far	longe
+felt	sentido
+few	poucos
+find	encontrar
+finds	encontra
+first	primeiro
+for	para
+four	quatro
+from	de
+full	cheio
+fully	totalmente
+further	mais distante
+furthered	promovido
+furthering	promovendo
+furthers	promove
+g	g
+gave	deu
+general	geral
+generally	geralmente
+get	pegue
+gets	fica
+give	dar
+given	dado
+gives	dá
+go	vai
+going	indo
+good	boa
+goods	mercadorias
+got	obteve
+great	ótimo
+greater	maior
+greatest	maior
+group	grupo
+grouped	agrupado
+grouping	agrupamento
+groups	grupos
+h	h
+had	teve
+has	tem
+have	ter
+having	tendo
+he	ele
+her	dela
+here	aqui
+herself	ela própria
+high	alto
+higher	superior
+highest	maior
+him	ele
+himself	ele mesmo
+his	dele
+how	como
+however	contudo
+i	eu
+if	e se
+important	importante
+in	em
+interest	interesse
+interested	interessado
+interesting	interessante
+interests	interesses
+into	para dentro
+is	é
+it	isto
+its	está
+itself	em si
+j	j
+just	somente
+k	k
+keep	manter
+keeps	mantém
+kind	tipo
+knew	sabia
+know	conhecer
+known	conhecido
+knows	sabe
+l	eu
+large	ampla
+largely	largamente
+last	último
+later	mais tarde
+latest	mais recentes
+least	menos
+less	menos
+let	deixei
+lets	vamos deixar
+like	gostar
+likely	provável
+long	longo
+longer	mais longo
+longest	mais longo
+m	m
+made	fez
+make	faço
+making	fazer
+man	homem
+many	muitos
+may	maio
+me	mim
+member	membro
+members	membros
+men	homens
+might	poderia
+more	mais
+most	a maioria
+mostly	na maioria das vezes
+mr	sr
+mrs	sra
+much	muito de
+must	devo
+my	minha
+myself	eu mesmo
+n	n
+necessary	necessário
+need	precisar
+needed	necessário
+needing	precisando
+needs	necessidades
+never	nunca
+new	novo
+newer	mais recente
+newest	o mais novo
+next	próximo
+no	não
+nobody	ninguém
+non	não
+noone	ninguém
+not	não
+nothing	nada
+now	agora
+nowhere	lugar algum
+number	número
+numbers	números
+o	o
+of	do
+off	fora
+often	frequentemente
+old	velho
+older	mais velho
+oldest	mais antigo
+on	em
+once	uma vez
+one	um
+only	só
+open	abrir
+opened	aberto
+opening	abertura
+opens	abre
+or	ou
+order	ordem
+ordered	encomendado
+ordering	encomenda
+orders	encomendas
+other	de outros
+others	outras
+our	nosso
+out	fora
+over	sobre
+p	p
+part	parte
+parted	se separaram
+parting	despedida
+parts	partes
+per	por
+perhaps	possivelmente
+place	lugar, colocar
+places	locais
+point	ponto
+pointed	apontou
+pointing	apontando
+points	pontos
+possible	possível
+present	presente
+presented	apresentado
+presenting	apresentar
+presents	presentes
+problem	problema
+problems	problemas
+put	colocar
+puts	coloca
+q	q
+quite	bastante
+r	r
+rather	em vez
+really	realmente
+right	certo
+room	sala
+rooms	quartos
+s	s
+said	disse
+same	mesmo
+saw	serra
+say	dizer
+says	diz
+second	segundo
+seconds	segundos
+see	vejo
+seem	parece
+seemed	parecia
+seeming	aparente
+seems	parece
+sees	vê
+several	de várias
+shall	deve
+she	ela
+should	devemos
+show	exposição
+showed	mostrou
+showing	mostrando
+shows	shows
+side	lado
+sides	lados
+since	desde a
+small	pequeno
+smaller	menor
+smallest	menor
+so	assim
+some	alguns
+somebody	alguém
+someone	alguém
+something	alguma coisa
+somewhere	algum lugar
+state	estado
+states	estados
+still	ainda
+such	tal
+sure	certo
+t	t
+take	leva
+taken	ocupado
+than	do que
+that	naquela
+the	a
+their	seus
+them	eles
+then	então
+there	lá
+therefore	assim sendo
+these	estes
+they	eles
+thing	coisa
+things	coisas
+think	pensar
+thinks	acha
+this	isto
+those	essa
+though	apesar
+thought	pensamento
+thoughts	pensamentos
+three	três
+through	através
+thus	portanto
+to	para
+today	hoje
+together	juntos
+too	também
+took	tomou
+toward	em direção a
+turn	virar
+turned	virou
+turning	girando
+turns	voltas
+two	dois
+u	você
+under	debaixo
+until	até
+up	acima
+upon	sobre
+us	nos
+use	usar
+used	usava
+uses	usa
+v	v
+very	muito
+w	w
+want	quer
+wanted	procurado
+wanting	querendo
+wants	quer
+was	estava
+way	caminho
+ways	maneiras
+we	nós
+well	bem
+wells	poços
+went	foi
+were	estavam
+what	que
+when	quando
+where	onde
+whether	se
+which	qual
+while	enquanto
+who	quem
+whole	todo
+whose	de quem
+why	porque
+will	vai
+with	com
+within	dentro
+without	sem
+work	trabalhos
+worked	trabalhado
+working	trabalhando
+works	trabalho
+would	seria
+x	x
+y	y
+year	ano
+years	anos
+yet	ainda
+you	você
+young	jovem
+younger	mais jovem
+youngest	mais jovem
+your	seu
+yours	sua
+z	z
+share	compartilhar
+linkthese	linkthese
+am	sou
+aren't	não são
+below	abaixo
+can't	não pode
+couldn't	não podia
+didn't	não fez
+doesn't	não faz
+doing	fazendo
+don't	não faça
+hadn't	não tinha
+hasn't	não tem
+haven't	não tem
+he'd	ele tinha
+he'll	inferno
+he's	ele é
+here's	aqui está
+hers	dela
+how's	como está
+i'd	identidade
+i'll	eu vou
+i'm	eu estou
+i've	eu tenho
+isn't	não é
+it's	está
+let's	vamos
+mustn't	não deve
+nor	nem
+ought	deveria
+ours	nosso
+ourselves	nós mesmos
+own	próprio
+shan't	shan't
+she'd	ela
+she'll	ela vai
+she's	ela é
+shouldn't	não deveria
+that's	isso é
+theirs	deles
+themselves	si mesmos
+there's	há
+they'd	eles tinham
+they'll	eles vão
+they're	eles estão
+they've	eles já
+wasn't	não foi
+we'd	qua
+we'll	bem
+we're	estamos
+we've	nós temos
+weren't	não estava
+what's	o que é
+when's	quando é
+where's	onde está a
+who's	quem é
+whom	o qual
+why's	por que
+won't	não vai
+wouldn't	não faria
+you'd	você gostaria
+you'll	você vai
+you're	você é
+you've	você tem
+yourself	você mesmo
+yourselves	vocês mesmos
