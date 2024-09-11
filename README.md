@@ -20,7 +20,7 @@ This model is finished and submitted to a peer review journal.
 
 ## Training Data
 
-The directory [data_raw](./data_raw) contains all raw data considered for the models' building. 
+The directory [data](./data) contains all data considered for the models' building. The raw data supporting this study, including the Geochemistry, Airborne Geophysics, and Pegmatite datasets, are openly available in the Geological Survey of Brazil Data Repository, accessible at https://geosgb.sgb.gov.br/. 
 
 ## Building:
 
