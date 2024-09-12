@@ -1,0 +1,1178 @@
+---
+title: "LiBorborema"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+Open libraries 
+
+```{r,warning=FALSE,message=FALSE}
+library(tidyverse)
+library(GGally)
+library(widyr)
+library(ggraph)
+library(igraph)
+library(caret) # Machine Learning
+library(randomForest) # RF
+library(randomForestExplainer) # RF
+library(doParallel)
+library(gridExtra)
+library(ggpubr)
+library(sf)
+
+```
+
+1) Reading data
+
+```{r,warning=FALSE,message=FALSE}
+#Training data
+df <- data.table::fread("E:\\PROJETOS\\LITIO_BORBOREMA\\r\\solo_gama_points.txt") %>%
+  mutate(BB_SUBCL_1 = as.factor(BB_SUBCL_1)) %>%
+  rename('gamma_k' = 'k_borborem',
+         'gamma_eu'= 'eu_borbore',
+         'gamma_eth' = 'eth_borbor',
+         'gamma_ct' = 'ct_borbore',
+         'litho' = 'BB_SUBCL_1') %>%
+  filter(gamma_eth > 0) %>%
+  mutate(gamma_k = case_when(gamma_k < 0 ~ 0.05*mean(gamma_k, na.rm = TRUE),
+                             is.na(gamma_k) ~ 0.05*mean(gamma_k, na.rm = TRUE),
+                             TRUE ~ as.double(gamma_k))) %>%
+  mutate(gamma_eth = case_when(gamma_eth < 0 ~ 0.05*mean(gamma_eth, na.rm = TRUE),
+                               is.na(gamma_eth) ~ 0.05*mean(gamma_eth, na.rm = TRUE),
+                               TRUE ~ as.double(gamma_eth))) %>%
+  mutate(gamma_eu = case_when(gamma_eu < 0 ~ 0.05*mean(gamma_eu, na.rm = TRUE),
+                              # gamma_eu > 20 ~ 30,
+                              is.na(gamma_eu) ~ 0.05*mean(gamma_eu, na.rm = TRUE),
+                              TRUE ~ as.double(gamma_eu))) %>%
+  mutate(gamma_ct = case_when(gamma_ct < 0 ~ 0.05*mean(gamma_ct, na.rm = TRUE),
+                              is.na(gamma_ct) ~ 0.05*mean(gamma_ct, na.rm = TRUE),
+                              TRUE ~ as.double(gamma_ct))) %>%
+  mutate(gamma_k_th = gamma_k/(gamma_eth),
+         gamma_u_th = gamma_eu/(gamma_eth),
+         gamma_k_eu = gamma_k/(gamma_eu),
+         gamma_f_factor = gamma_k*gamma_eu/gamma_eth) %>%
+  select(1,3:63,65:68,64)
+
+glimpse(df)
+```
+Reading Geophysical Data
+
+```{r,warning=FALSE,message=FALSE}
+# Geophysical data
+newdata <- readRDS('E:\\PROJETOS\\LITIO_BORBOREMA\\r\\xyz\\borborema_gamma.RDS')
+
+glimpse(newdata)
+```
+Reading Pegmatite Datasets
+
+```{r,warning=FALSE,message=FALSE}
+# Recmin
+pegmatites <- foreign::read.dbf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\pegmatitos_li.dbf')
+recmin1 <- foreign ::read.dbf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\borborema_PegLi.dbf') #RASTERVALU
+
+
+glimpse(pegmatites)
+
+```
+
+Reading Domains and StopWords for further analysis
+```{r,warning=FALSE,message=FALSE}
+# Domains ----
+MC <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_MC.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+CC <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_CC.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+JG <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_JG.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+PS <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_PS.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+JC <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_JC.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+ZT <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_ZT.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+RP <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_RP.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+PA <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_PA.shp',as_tibble = TRUE) %>%
+  st_coordinates() 
+SE <- sf::read_sf('E:\\PROJETOS\\LITIO_BORBOREMA\\shp\\Domains\\Domain_SE.shp',as_tibble = TRUE) %>%
+  st_coordinates()
+
+stop_words_pt <- data.table::fread('C:\\Users\\guilherme.ferreira\\Documents\\STOPWORDS_POTUGUES.txt')
+```
+
+Data Processing
+
+```{r,warning=FALSE,message=FALSE,fig.height=14,fig.width=10}
+
+# Mapas de Entrada
+
+# Potássio ----
+mk <-
+   newdata %>%
+   mutate(gamma_k = case_when(gamma_k < 0 ~ 0,
+                              TRUE ~ gamma_k)) %>%
+   ggplot(aes(x,y,fill = gamma_k)) +
+   geom_raster() +
+   coord_equal(xlim = c(-42,-35),
+               ylim = c(-11.5,-3),
+               expand = TRUE,
+               clip = 'on') +
+   scale_fill_gradientn(colours = pals::turbo(),
+                        guide = guide_colorbar(barheight = 10,
+                                               barwidth = 2),
+                        breaks=seq(0,300,2.5)) +
+   ggpubr::theme_pubr() +
+   theme(legend.position = 'right') +
+   labs(fill = 'K (%)',
+        x = 'Longitude',
+        y = 'Latitude',
+        title = 'a)')
+
+
+# Tório ----
+mth <- 
+   newdata %>%
+   mutate(gamma_eth = case_when(gamma_eth > 150 ~ 150,
+                                gamma_eth <= 150 ~ gamma_eth)) %>%
+   ggplot(aes(x,y,fill = gamma_eth)) +
+   geom_raster() +
+   coord_equal(xlim = c(-42,-35),
+               ylim = c(-11.5,-3),
+               expand = TRUE,
+               clip = 'on') +
+   scale_fill_gradientn(colours = pals::turbo(),
+                        guide = guide_colorbar(barheight = 10,
+                                               barwidth = 2),
+                        breaks=seq(0,300,50)) +
+   ggpubr::theme_pubr() +
+   theme(legend.position = 'right') +
+   labs(fill = 'eTh (ppm)',
+        x = 'Longitude',
+        y = 'Latitude',
+        title = 'b)')
+
+
+# Urânio ----
+mu <-
+   newdata %>%
+   mutate(gamma_eu = case_when(gamma_eu < 0 ~ 0,
+                               gamma_eu > 15 ~ 15,
+                               TRUE ~ gamma_eu)) %>%
+   ggplot(aes(x,y,fill = gamma_eu)) +
+   geom_raster() +
+   coord_equal(xlim = c(-42,-35),
+               ylim = c(-11.5,-3),
+               expand = TRUE,
+               clip = 'on') +
+   scale_fill_gradientn(colours = pals::turbo(),
+                        guide = guide_colorbar(barheight = 10,
+                                               barwidth = 2),
+                        breaks=seq(-10,300,5)) +
+   ggpubr::theme_pubr() +
+   theme(legend.position = 'right') +
+   labs(fill = 'eU (ppm)',
+        x = 'Longitude',
+        y = 'Latitude',
+        title = 'c)')
+
+
+# Total Count ----
+mct <-
+   newdata %>%
+   ggplot(aes(x,y,fill = gamma_ct)) +
+   geom_raster() +
+   coord_equal(xlim = c(-42,-35),
+               ylim = c(-11.5,-3),
+               expand = TRUE,
+               clip = 'on') +
+   scale_fill_gradientn(colours = pals::turbo(),
+                        guide = guide_colorbar(barheight = 10,
+                                               barwidth = 2),
+                        breaks=seq(-10,300,20)) +
+   ggpubr::theme_pubr() +
+   theme(legend.position = 'right') +
+   labs(fill = 'Total Count',
+        x = 'Longitude',
+        y = 'Latitude',
+        title = 'd)')
+
+
+# F Factor ----
+mf <-
+   newdata %>%
+   mutate(gamma_f_factor = case_when(gamma_f_factor > 10.1 ~ 10.1,
+                                     TRUE ~ gamma_f_factor),
+   ) %>%
+   ggplot(aes(x,y,fill = gamma_f_factor)) +
+   geom_raster() +
+   coord_equal(xlim = c(-42,-35),
+               ylim = c(-11.5,-3),
+               expand = TRUE,
+               clip = 'on') +
+   scale_fill_gradientn(colours = pals::turbo(),
+                        guide = guide_colorbar(barheight = 10,
+                                               barwidth = 2),
+                        breaks=seq(-10,300,2.5)) +
+   ggpubr::theme_pubr() +
+   theme(legend.position = 'right') +
+   labs(fill = 'F Factor',
+        x = 'Longitude',
+        y = 'Latitude')
+
+# K/eU ----
+mku <-
+   newdata %>%
+   mutate(gamma_k_eu = case_when(gamma_k_eu > 10 ~ 10,
+                                 gamma_k_eu < 0 ~ 0,
+                                 TRUE ~ gamma_k_eu),
+   ) %>%
+   ggplot(aes(x,y,fill = gamma_k_eu)) +
+   geom_raster() +
+   coord_equal(xlim = c(-42,-35),
+               ylim = c(-11.5,-3),
+               expand = TRUE,
+               clip = 'on') +
+   scale_fill_gradientn(colours = pals::turbo(),
+                        guide = guide_colorbar(barheight = 10,
+                                               barwidth = 2),
+                        breaks=seq(-10,300,2)) +
+   ggpubr::theme_pubr() +
+   theme(legend.position = 'right') +
+   labs(fill = 'K/eU',
+        x = 'Longitude',
+        y = 'Latitude',
+        title = 'e)')
+
+# Soil Geochemistry
+mgeq <-
+    df %>%
+    ggplot(aes(x,y, fill = log10(li_ppm))) +
+    geom_point(shape = 22, col = 'black', alpha = 1) +
+    geom_raster(inherit.aes = FALSE,
+                data = newdata,
+                mapping = aes(x,y),
+                fill = 'black',
+                alpha = .3) +
+    coord_equal(xlim = c(-42,-35),
+                ylim = c(-11.5,-3),
+                expand = TRUE,
+                clip = 'on') +
+    scale_fill_gradientn(colours = pals::turbo(),
+                         guide = guide_colorbar(barheight = 10,
+                                                barwidth = 2)) +
+    ggpubr::theme_pubr() +
+    labs(x = 'Longitude',
+         y = 'Latitude',
+         fill = 'Log10(Li,ppm)',
+         title = 'f)') +
+    scale_size(guide = 'none') +
+    theme(legend.position = "right")
+
+grid.arrange(mk,mth,mu,mct,mku,mgeq,
+                        layout_matrix = matrix(c(1,2,
+                                                 3,4,
+                                                 5,6), ncol = 2, byrow = TRUE))
+
+```
+
+
+```{r, fig.height=7,fig.width=12}
+
+
+pegmatites %>%
+  filter(str_detect(SUBSTANCIA,'Lítio|Espodumênio')) -> t
+
+
+recmin <-
+  pegmatites %>%
+  mutate(SUBSTANCIA = as.character(SUBSTANCIA)) %>%
+  tidytext::unnest_tokens(output = word, input = SUBSTANCIA) %>%
+  anti_join(stop_words_pt, by = c('word' = 'Portugues')) %>%
+  filter(!word %in% c('marinha','cristal','ferro','rocha','níquel','rosa','raras','hialino','fumê','pedra')) %>%
+  mutate(word = case_when(word == 'água' ~ 'agua-marinha',
+                          word == 'terras' ~ 'terras-raras',
+                          word == 'ornamental' ~ 'pedra-ornamental',
+                          word == 'espodumênio' ~ 'lítio',
+                          TRUE ~ as.character(word))) %>%
+  mutate(word = case_when(word == 'terras-raras' ~ 'rare earth',
+                          word == 'neodímio' ~ 'neodymium',
+                          word == 'cério' ~ 'cerium',
+                          word == 'granada' ~ 'garnet',
+                          word == 'talco' ~ 'talc',
+                          word == 'amazonita' ~ 'amazonite',
+                          word == 'córindon' ~ 'corundum',
+                          word == 'urânio' ~ 'uranium',
+                          word == 'agua-marinha' ~ 'aquamarine',
+                          word == 'lazulita' ~ 'lazulite',
+                          word == 'pegmatito' ~ 'dimension stone',
+                          word == 'pedra-ornamental' ~ 'dimension stone',
+                          word == 'caulim' ~ 'kaolinite',
+                          word == 'amerício' ~ 'americium',
+                          word == 'muscovita' ~ 'muscovite',
+                          word == 'vermiculita' ~ 'vermiculite',
+                          word == 'feldspato' ~ 'feldspar',
+                          word == 'citrino' ~ 'citrine',
+                          word == 'turmalina' ~ 'tourmaline',
+                          word == 'albita' ~ 'albite',
+                          word == 'quartzo' ~ 'quartz',
+                          word == 'calcedônia' ~ 'chalcedony',
+                          word == 'ametista' ~ 'amethyst',
+                          word == 'lítio' ~ 'spodumene',
+                          word == 'bismuto' ~ 'bismuth',
+                          word == 'tântalo' ~ 'tantalum',
+                          word == 'nióbio' ~ 'niobium',
+                          word == 'berílio' ~ 'beryllium',
+                          word == 'estanho' ~ 'tin',
+                          word == 'titânio' ~ 'titanium',
+                          word == 'tungstênio' ~ 'tungsten',
+                          word == 'molibdênio' ~ 'molybdenum',
+                          word == 'rutênio' ~ 'ruthenium',
+                          word == 'mica' ~ 'muscovite',
+                          TRUE ~ as.character(word)))
+
+recmin_freq <-
+  recmin %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 0)
+
+word_correlations <-
+  recmin %>%
+  semi_join(recmin_freq, by = 'word') %>%
+  widyr::pairwise_cor(item = word, feature = ID_AFLORAM) %>%
+  filter(correlation > 0)
+
+set.seed(131)
+(p.net <- 
+    graph_from_data_frame(d = word_correlations,
+                          vertices = recmin_freq) %>%
+    ggraph(layout = 'fr') +
+    geom_edge_link(aes(alpha = correlation,
+                       width = correlation)) +
+    geom_node_point(aes(size = n),
+                    shape = 21,
+                    fill = 'grey',
+                    col = 'black') +
+    geom_node_text(aes(label = name,
+                       size = n), repel = TRUE,
+                   col = 'grey10') +
+    ggpubr::theme_transparent() +
+    theme(legend.position = 'none') +
+    scale_edge_width(range = c(.5,1.5)) +
+    scale_size(range = c(7,8))
+)
+```
+
+GGPAIRS
+
+```{r, warning=FALSE,message=FALSE, fig.height=14,fig.width=14}
+df %>%
+  dplyr::select(li_ppm,gamma_k:gamma_f_factor) %>%
+  magrittr::set_colnames(c('Li','eU','K','eTh',
+                           'TC','K/eTh','eU/eTh',
+                           'K/eU','F-Factor')) %>%
+  geoquimica::elem_norm(method = 'clr') %>%
+  GGally::ggpairs(lower=list(continuous = GGally::wrap("smooth",
+                                                       col = 'grey',
+                                                       alpha = .7)),
+                  diag = list(continuous = GGally::wrap("densityDiag",
+                                                alpha=0.5,
+                                                fill = 'grey' )),
+                  upper = list(continuous = GGally::wrap('cor',
+                                                         stars = F,
+                                                         method = 'spearman'))
+                  ) +
+  ggpubr::theme_pubclean() 
+```
+Model Tunning
+```{r, message=FALSE,warning=FALSE}
+doParallel::registerDoParallel(cores = detectCores()-1)
+
+# Training-Test Split
+set.seed(0)
+trainset <- df %>%
+  select(li_ppm,gamma_k:gamma_f_factor) %>%
+  sample_frac(.85)
+
+testset <- df %>%
+  select(li_ppm,gamma_k:gamma_f_factor) %>%
+  anti_join(trainset)
+
+
+# Data tunning
+tg <- data.frame(mtry = seq(2,8, by = 1))
+ctrl <- caret::trainControl(method = 'LGOCV',
+                            number = 10,
+                            # repeats = 3,
+                            search = 'grid',
+                            allowParallel = TRUE,
+                            verboseIter = TRUE,p = .75)
+
+set.seed(0)
+tunning <- caret::train(li_ppm ~ ., data = trainset,
+                        method = "rf",
+                        trControl = ctrl,
+                        ntree = 1000,
+                        importance = TRUE,
+                        tuneGrid = tg, proximity = TRUE)
+
+print(tunning)
+
+```
+
+```{r}
+# Model training
+
+set.seed(0)
+minModel <- randomForest(li_ppm ~ .,
+                         trainset,
+                         proximity = TRUE,
+                         ntree = 1000, localImp = TRUE,
+                         mtry = tunning$bestTune[[1,1]])
+
+print(minModel)
+plot(minModel)
+```
+
+```{r,message=FALSE,warning=FALSE,fig.height=12,fig.width=10}
+p.Imp <-
+  varImp(minModel) %>% arrange(desc(Overall)) %>% rownames_to_column() %>%
+  mutate(Feature = factor(case_when(rowname == 'gamma_k' ~ 'K',
+                                    rowname == 'gamma_u_th' ~ 'U/Th',
+                                    rowname == 'gamma_k_eu' ~ 'K/eU',
+                                    rowname == 'gamma_eth' ~ 'eTh',
+                                    rowname == 'gamma_k_th' ~ 'K/eTh',
+                                    rowname == 'gamma_f_factor' ~ 'F-Factor',
+                                    rowname == 'gamma_eu' ~ 'eU',
+                                    rowname == 'gamma_ct' ~ 'TC',
+                                    TRUE ~ rowname)),levels = c('K',
+                                                                'U/Th',
+                                                                'K/eU',
+                                                                'eTh',
+                                                                'K/eTh',
+                                                                'F-Factor',
+                                                                'eU',
+                                                                'TC')) %>% 
+  ggplot(aes(y = fct_reorder(Feature,Overall), x = Overall)) +
+  geom_segment(aes(xend = 0, yend = Feature)) +
+  geom_point(size = 5, fill = 'grey10', alpha = .9,
+             shape = 21, col = 'black') +
+  geom_text(mapping = aes(label = paste(round(Overall,1),'%')),nudge_x = .5) +
+  ggpubr::theme_pubr() +
+  scale_fill_viridis_c() +
+  coord_cartesian(xlim = c(10,14),expand = TRUE,clip = 'on') +
+  labs(x = '% Increase MSE',y = '',title = 'a)')
+
+p1 <-
+  plot_predict_interaction(forest = minModel,
+                           data = trainset,
+                           variable1 =  "gamma_eu",
+                           variable2 =  "gamma_eth",
+                           grid = 500) +
+  labs(x = 'Gamma: eU (ppm)',
+       y = 'Gamma: eTh (ppm)',
+       fill = 'Predicted: Li (ppm)',title = '') +
+  coord_cartesian(expand = FALSE,clip = 'off') +
+  theme_bw() +
+  theme(legend.position = 'bottom',
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank()) +
+  scale_fill_gradientn(colours = pals::turbo()) +
+  labs(title = 'b)')
+
+get_only_legend <- function(plot) { 
+  plot_table <- ggplot_gtable(ggplot_build(plot)) 
+  legend_plot <- which(sapply(plot_table$grobs, function(x) x$name) == "guide-box") 
+  legend <- plot_table$grobs[[legend_plot]] 
+  return(legend) 
+} 
+
+legend <- get_only_legend(p1)
+
+p1 <-
+    plot_predict_interaction(forest = minModel,
+                             data = trainset,
+                             variable1 =  "gamma_eu",
+                             variable2 =  "gamma_eth",
+                             grid = 500) +
+    geom_hline(yintercept = 7.5,
+               linetype = 'dashed',
+               col = 'white',
+               size = .8) +
+    annotate(geom = 'text',
+             label = '7.5 ppm',
+             x = 1,
+             y = 11.5,
+             col = 'white') +
+    geom_vline(xintercept = 2.23,
+               linetype = 'dashed',
+               col = 'white',
+               size = .8) +
+    annotate(geom = 'text',
+             label = '2.2 ppm',
+             x = 1.9,
+             y = 35, 
+             angle = 90, 
+             col = 'white') +
+    geom_vline(xintercept = 5.93,
+               linetype = 'dashed',
+               col = 'white',
+               size = .8) +
+    annotate(geom = 'text',
+             label = '5.9 ppm',
+             x = 5.65,
+             y = 35,
+             angle = 90,
+             col = 'white') +
+    labs(x = 'Gamma: eU (ppm)',
+         y = 'Gamma: eTh (ppm)',
+         fill = 'Predicted: Li (ppm)',title = '') +
+    coord_cartesian(expand = FALSE,clip = 'off') +
+    scale_x_continuous(breaks = seq(0,7,1)) +
+    scale_y_continuous(breaks = seq(0,70,10)) +
+    theme_bw() +
+    theme(legend.position = 'none') +
+    scale_fill_gradientn(colours = pals::turbo()) +
+    labs(title = 'b)')
+
+
+p2 <-
+  plot_predict_interaction(forest = minModel,
+                           data = trainset,
+                           variable1 =  "gamma_eu",
+                           variable2 =  "gamma_k",
+                           grid = 500) +
+  geom_hline(yintercept = 1.15,
+             linetype = 'dashed',
+             col = 'white',
+             size = .8) +
+  annotate(geom = 'text',
+           label = '1.1 ppm',
+           x = 1,
+           y = 1.8,
+           col = 'white') +
+    geom_hline(yintercept = 2.85,
+               linetype = 'dashed',
+               col = 'white',
+               size = .8) +
+    annotate(geom = 'text',
+             label = '2.8 ppm',
+             x = 1,
+             y = 3.3,
+             col = 'white') +
+  geom_vline(xintercept = 2.23,
+             linetype = 'dashed',
+             col = 'white',
+             size = .8) +
+  annotate(geom = 'text',
+           label = '2.2 ppm',
+           x = 1.9,
+           y = 5.5, 
+           angle = 90, 
+           col = 'white') +
+  geom_vline(xintercept = 5.93,
+             linetype = 'dashed',
+             col = 'white',
+             size = .8) +
+  annotate(geom = 'text',
+           label = '5.9 ppm',
+           x = 5.65,
+           y = 5.5,
+           angle = 90,
+           col = 'white') +
+  labs(x = 'Gamma: eU (ppm)',
+       y = 'Gamma: K (%)',
+       fill = 'Predicted: Li (ppm)',title = '') +
+  coord_cartesian(expand = FALSE,clip = 'off') +
+  scale_x_continuous(breaks = seq(0,7,1)) +
+  scale_y_continuous(breaks = seq(0,8,1)) +
+  theme_bw() +
+  theme(legend.position = 'none') +
+  scale_fill_gradientn(colours = pals::turbo()) +
+  labs(title = 'c)')
+
+
+gridExtra::grid.arrange(p.Imp,p1,p2,legend,
+                         layout_matrix = matrix(c(1,2,
+                                                  1,3,
+                                                  1,4), ncol = 2, byrow = TRUE), heights = c(5,5,2))
+```
+
+```{r,warning=FALSE,message=FALSE, fig.height=12,fig.width=9}
+# Predição
+predOut <- predict(minModel,newdata =  df)
+
+df1 <- df %>%
+  bind_cols(as_tibble(predOut)) %>%
+  rename(li_ppm_pred = 'value')
+
+set.seed(1123)
+
+p0 <-
+  df1 %>%
+  ggplot(aes(li_ppm, li_ppm_pred)) +
+  # geom_smooth(method = MASS::rlm) +
+  labs(x = 'REFERENCE: log10(Li, ppm)',
+       y = 'PREDICTED: log10(Li, ppm)') +
+  geom_abline(intercept = 0,slope = 1,
+              linetype = 2, size = 1,
+              col = 'black') +
+  geom_jitter(width = 0.04,height = 0,
+              shape = 21, size = 5, alpha = .5,
+              fill = 'grey90'
+  ) +
+  geom_smooth(method = MASS::rlm,
+              col = 'black') +
+  ggpubr::stat_cor(label.x = -0.4,
+                   label.y = 2) +
+  ggpubr::stat_regline_equation(label.x = -0.4,
+                                label.y = 1.9) +
+  # coord_equal() +
+  scale_y_continuous(trans = 'log10') +
+  scale_x_continuous(trans = 'log10') +
+  theme_classic() +
+  annotation_logticks()  
+
+p01 <-
+    df1 %>%
+    ggplot(aes(li_ppm,
+               (li_ppm_pred - li_ppm)/li_ppm)
+    ) +
+    geom_hline(yintercept = 1) +
+    geom_hline(yintercept = -1) +
+    geom_vline(xintercept = 35,
+               linetype = 5) +
+    geom_vline(xintercept = 5,
+               linetype = 5) +
+    geom_abline(intercept = 0,slope = 0,
+                linetype = 2, size = 1,
+                col = 'black') +
+    geom_smooth(col = 'black', se = TRUE) +
+    geom_jitter(width = 0.02,height = 0,
+                shape = 21, size = 5, alpha = .7,
+                fill = 'grey90'
+    ) +
+    geom_smooth(col = 'black', se = FALSE) +
+    scale_x_continuous(
+      # limits = c(1,180),
+      trans = 'log10'
+    ) +
+    theme_classic() +
+    annotation_logticks(sides = 'b') +
+    labs(x = 'REFERENCE: log10(Li, ppm)',
+         y = 'RELATIVE DIFFERENCE: [(PRED. - REF.) / REF.]') +
+    annotate(geom = 'text',label = '+1',
+             x = 80, y = 1.3) +
+    annotate(geom = 'text',label = '-1',
+             x = 80, y = -1.3) +
+    annotate(geom = 'text',label = 'Limit of Quantification',
+             x = 3.75,y = 15,angle = 90) +
+    annotate(geom = 'text',label = '(5 ppm)',
+             x = 4.35,y = 15,angle = 90) +
+    annotate(geom = 'text',label = 'Upper Crustal Average',
+             x = 35-5,y = 15,angle = 90) +
+    scale_y_continuous(breaks = seq(-5,40,5))
+
+ggpubr::ggarrange(p0,p01,
+                  ncol = 1,hjust = 0,
+                  common.legend = FALSE,
+                  labels = c('a)','b)'),
+                  widths = c(2, 1))
+```
+
+```{r}
+li_mapa <- predict(minModel,newdata =  newdata)
+
+mapa_output <- newdata %>%
+  bind_cols(as_tibble(li_mapa)) %>%
+  rename(li_ppm_pred = 'value')
+print(mapa_output)
+```
+
+```{r, fig.height=14,fig.width=10}
+p4 <-
+    mapa_output %>%
+    ggplot(aes(x,y,fill = li_ppm_pred)) +
+    geom_tile() +
+    scale_fill_gradientn(colours = pals::turbo(),
+                         guide = guide_colorbar(barheight = 10,
+                                                barwidth = 2),
+                         breaks=seq(0,270,10)) +
+    coord_equal() +
+    geom_point(inherit.aes = FALSE,
+               data = recmin %>%
+                 sample_frac(.6),
+               mapping = aes(x,y),
+               shape = 21,
+               fill = NA,
+               col = 'black',
+               alpha = .3) +
+    ggpubr::theme_pubr() +
+    scale_x_continuous(breaks = seq(-50,-30,1),
+                       minor_breaks = seq(-50,-30,0.5)) +
+    scale_y_continuous(breaks = seq(-20,0,1),
+                       minor_breaks = seq(-20,0,0.5)) +
+    theme(legend.position = 'inside',
+          legend.position.inside = c(0.9,0.9)) +
+    geom_path(inherit.aes = FALSE,
+              data = MC,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'MC',
+             x = -41,
+             y = -3.2,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = MC,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'CC',
+             x = -40,
+             y = -5,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = CC,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'JG',
+             x = -39,
+             y = -6,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = JG,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'PS',
+             x = -37.5,
+             y = -6.25,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = PS,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'JC',
+             x = -35.5,
+             y = -6,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = JC,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'ZT',
+             x = -37,
+             y = -7.5,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = ZT,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'PA',
+             x = -38.5,
+             y = -9,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = PA,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'RP',
+             x = -41,
+             y = -8.75,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = RP,
+              aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'SE',
+             x = -37.5,
+             y = -10.5,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+              data = SE,
+              aes(X,Y),
+              alpha = .7) +
+    labs(title = 'a)',
+         fill = 'Li (ppm)',
+         x = 'Longitude (º)',
+         y = 'Latitude (º)') +
+    geom_rect(xmin = -37.25,
+              xmax = -35.75,
+              ymin = -7.2,
+              ymax = -5.7,
+              fill = NA,
+              col = 'black',
+              size = 1) +
+    geom_rect(xmin = -38.5,
+              xmax = -40.5,
+              ymin = -8,
+              ymax = -6.5,
+              fill = NA,
+              col = 'black',
+              size = 1)
+
+
+# Seridó
+set.seed(0)
+p5 <-
+    mapa_output %>%
+    ggplot(aes(x,y,fill = li_ppm_pred)) +
+    geom_tile() +
+    scale_fill_gradientn(colours = pals::turbo()) +
+    coord_equal(xlim = c(-37.25,-35.75),
+                ylim = c(-7.2,-5.7)) + 
+    geom_point(inherit.aes = FALSE,
+               data = recmin %>%
+                 sample_frac(.7),
+               mapping = aes(x,y),
+               shape = 21,
+               fill = NA,
+               col = 'black',
+               alpha = .4,
+               size = 3) +
+    scale_x_continuous(breaks = seq(-50,-30,0.5)
+                       ) +
+    scale_y_continuous(breaks = seq(-20,0,0.5),
+                       ) +
+    ggpubr::theme_pubr() +
+    theme(legend.position = 'none') +
+    labs(title = 'c)',
+         fill = 'Li (ppm)',
+         x = '',
+         y = ''
+    )
+
+
+# Araripe
+p6 <-
+    mapa_output %>%
+    ggplot(aes(x,y,fill = li_ppm_pred)) +
+    geom_tile() +
+    scale_fill_gradientn(colours = pals::turbo()) +
+    coord_equal(xlim = c(-40.5,-38.5),
+                ylim = c(-8,-6.5)) +
+    scale_x_continuous(breaks = seq(-50,-30,0.5)
+    ) +
+    scale_y_continuous(breaks = seq(-20,0,0.5),
+    ) +
+    geom_point(inherit.aes = FALSE,
+               data = recmin %>%
+                 sample_frac(1),
+               mapping = aes(x,y),
+               shape = 21,
+               fill = NA,
+               col = 'black',
+               alpha = 1,
+               size = 4) +
+    ggpubr::theme_pubr() +
+    theme(legend.position = 'none') +
+    labs(title = 'b)',
+         fill = 'Li (ppm)',
+         x = '',
+         y = ''
+    )
+
+
+grid.arrange(p4,p6,p5,
+             layout_matrix = matrix(c(1,1,
+                                      1,1,
+                                      1,1,
+                                      2,3), ncol = 2, byrow = TRUE))
+
+
+```
+
+```{r,message=FALSE,error=FALSE,fig.height=9,fig.width=9}
+mu <- median(mapa_output$li_ppm_pred)
+sd <- sd(mapa_output$li_ppm_pred)
+
+p7 <- 
+    mapa_output %>%
+    ggplot(aes(li_ppm_pred)) +
+    geom_density(fill = 'grey80',
+                 alpha = .7) +
+    labs(title = 'a)',x = '',y = '') +
+    ggpubr::theme_pubr() +
+    coord_cartesian(xlim = c(0,60)) +
+    labs(title = 'a)',x = '',y = '') +
+    annotate(geom = 'text',label = 'Global Median',
+             x = mu-1,y = .04,angle = 90) +
+    annotate(geom = 'text',label = 'Avg. Upper Crust',
+             x = (34),y = .040, angle = 90) +
+    geom_vline(aes(xintercept = 35), linetype = 'longdash') +
+    annotate(geom = 'text',label = 'Threshold',
+             x = mu+3*sd-1,y = .04,angle = 90) +
+    geom_vline(aes(xintercept = mu)) +
+    geom_vline(aes(xintercept = mu+3*sd),
+               linetype = 'dashed') +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_blank()) 
+p8 <- 
+    recmin1 %>%
+    rename(li_pred = RASTERVALU) %>%
+    ggplot() +
+    geom_density(aes(li_pred), fill = 'grey', alpha = .7) +
+    geom_vline(aes(xintercept = mu)) +
+    geom_vline(aes(xintercept = mu+3*sd),
+               linetype = 'dashed') +
+    geom_vline(aes(xintercept = 35), linetype = 'longdash') +
+    annotate(geom = 'segment',
+             x = mu, y = .008, xend = mu+3*sd, yend = .008,
+             arrow = arrow(ends = "both")) +
+    geom_rug(aes(li_pred)) +
+    annotate(geom = 'text',label = 'Median + 3*SD',
+             x = ((mu+(mu+3*sd))/2),y = .020) +
+    ggpubr::theme_pubr() +
+    coord_cartesian(xlim = c(0,60)) +
+    labs(title = 'b)',x = '',y = '') +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_blank())
+
+set.seed(42)
+p9 <- 
+    recmin1 %>%
+    rename(li_pred = RASTERVALU) %>%
+    mutate(symbol = case_when(li_pred > (mu+3*sd) ~ 'OUTLIER',
+                              TRUE ~ 'REGULAR')) %>%
+    ggplot(aes(x = li_pred)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(aes(y = 0, shape = symbol),width = 0,height = 0.35, 
+                fill = NA, col = 'black', alpha = .4) +
+    geom_vline(aes(xintercept = mu)) +
+    geom_vline(aes(xintercept = mu+3*sd),
+               linetype = 'dashed') +
+    geom_vline(aes(xintercept = 35), linetype = 'longdash') +
+    ggpubr::theme_pubr() +
+    coord_cartesian(xlim = c(0,60)) +
+    labs(title = 'c)',x = 'Li (ppm)', y ='') +
+    scale_shape_manual(values = c(8,21)) +
+    scale_x_continuous(breaks = seq(0,60,by = 10)) +
+    annotate(geom = 'text',label = 'Li-rich Pegmatites = 102 (8%)',
+             x = 42,y = 0.35,
+             hjust = 0) +
+    annotate(geom = 'text',label = 'Other Pegmatites = 1122 (92%)',
+             x = 42,y = 0.2,
+             hjust = 0) +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          legend.position = 'none')
+
+(p.density <-grid.arrange(p7,p8,p9, ncol = #,
+                          # heights = c(6,6,6)
+                          )
+)
+```
+
+```{r}
+recmin1 %>%
+  rename(li_pred = RASTERVALU) %>%
+  mutate(symbol = case_when(li_pred > (mu+3*sd) ~ 'OUTLIER',
+                            TRUE ~ 'REGULAR')) %>%
+  select(symbol) %>%
+  group_by(symbol) %>%
+  summarize(n = n())
+
+recmin1 %>%
+  rename(li_pred = RASTERVALU) %>%
+  arrange(desc(li_pred)) %>%
+  mutate(SUBSTANCIA = tolower(SUBSTANCIA)) %>%
+  mutate(Substances = str_replace_all(SUBSTANCIA,
+                                      c('terras-raras' = 'Rare Earth',
+                                        'neodímio' = 'Neodymium',
+                                        'cério' = 'Cerium',
+                                        'granada' = 'Garnet',
+                                        'talco' = 'Talc',
+                                        'amazonita' = 'Amazonite',
+                                        'córindon' = 'Corundum',
+                                        'urânio' = 'Uranium',
+                                        'água-marinha' = 'Aquamarine',
+                                        'água marinha' = 'Aquamarine',
+                                        'lazulita' = 'Lazulite',
+                                        'pegmatito' = 'Dimension stone',
+                                        'pedra-ornamental' = 'Dimension stone',
+                                        'caulim' = 'Kaolinite',
+                                        'amerício' = 'Americium',
+                                        'muscovita' = 'Muscovite',
+                                        'vermiculita' = 'Vermiculite',
+                                        'feldspato' = 'Feldspar',
+                                        'citrino' = 'Citrine',
+                                        'turmalina' = 'Tourmaline',
+                                        'albita' = 'Albite',
+                                        'quartzo' = 'Quartz',
+                                        'quartzo rosa' = 'Pink quartz',
+                                        'calcedônia' = 'Chalcedony',
+                                        'ametista' = 'Amethyst',
+                                        'lítio' = 'Spodumene',
+                                        'bismuto' = 'Bismuth',
+                                        'tântalo' = 'Tantalum',
+                                        'nióbio' = 'Niobium',
+                                        'berílio' = 'Beryllium',
+                                        'estanho' = 'Tin',
+                                        'titânio' = 'Titanium',
+                                        'tungstênio' = 'Tungsten',
+                                        'molibdênio' = 'Molybdenum',
+                                        'rutênio' = 'Ruthenium',
+                                        'mica' = 'Muscovite',
+                                        'rocha ornamental' = 'Dimension stone'))) %>%
+  select(TOPONIMIA,x,y, Substances, li_pred) %>%
+  filter(li_pred > 35) %>%
+  rename('Pegmatite Name' = 'TOPONIMIA',
+         'Longitude' = 'x',
+         'Latitude' = 'y',
+         'Known substances' = 'Substances',
+         'Li (ppm) in soil' = 'li_pred') %>%
+  head(40) 
+```
+
+```{r, fig.height=12, fig.width=12}
+
+mapa_output %>%
+    mutate(li_bin = case_when(li_ppm_pred >= 35 ~ "2 - Anomalies (Li > 35 ppm)",
+                              li_ppm_pred > 28.7 & li_ppm_pred < 35 ~ '1 - Permissive (Li > 28.7 ppm)',
+                              li_ppm_pred <= 28.7 ~ "0 - Non permissive")) %>%
+    ggplot(aes(x,y,fill = li_bin)) +
+    geom_tile() +
+    geom_path(inherit.aes = FALSE,
+                 data = MC,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'MC',
+             x = -41,
+             y = -3.2,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = MC,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'CC',
+             x = -40,
+             y = -5,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = CC,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'JG',
+             x = -39,
+             y = -6,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = JG,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'PS',
+             x = -37.5,
+             y = -6.25,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = PS,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'JC',
+             x = -35.5,
+             y = -6,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = JC,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'ZT',
+             x = -37,
+             y = -7.5,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = ZT,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'PA',
+             x = -38.5,
+             y = -9,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = PA,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'RP',
+             x = -41,
+             y = -8.75,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = RP,
+                 aes(X,Y),
+              alpha = .7) +
+    annotate(geom = 'text',
+             label = 'SE',
+             x = -37.5,
+             y = -10.5,
+             color = 'white',
+             fontface = 'bold',
+             size = 7) +
+    geom_path(inherit.aes = FALSE,
+                 data = SE,
+                 aes(X,Y),
+              alpha = .7) +
+    scale_fill_viridis_d() +
+    coord_equal() +
+    scale_x_continuous(breaks = seq(-50,-30,1)
+    ) +
+    scale_y_continuous(breaks = seq(-20,0,1),
+    ) +
+    ggpubr::theme_pubr() +
+    theme(legend.position = 'inside',
+          legend.position.inside = c(0.75,0.9)) +
+    labs(fill = '',
+         x = 'Longitude (º)',
+         y = 'Latitude (º)')
+```
